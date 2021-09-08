@@ -1,5 +1,7 @@
 # miscong
 
+Nginx misconfig directory traversal tool over entire internet
+
 ```
 usage: app.py [-h] [-w WORKERS] [-t TIMEOUT] [-l LIMIT] [-d DEBUGLEVEL] list
 
