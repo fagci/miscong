@@ -12,6 +12,7 @@ MAX_IPV4 = 1 << IPV4LENGTH
 
 HEADERS = {'User-Agent': 'Mozilla/5.0'}
 
+STATS = Path(__file__).resolve().parent / 'stats.txt'
 
 class Checker(HTTPConnection):
     __slots__ = ('fuzz_list', 'timeout')
@@ -32,8 +33,12 @@ class Checker(HTTPConnection):
                 yield code, size, path, body
 
     def pre(self):
-        self.request('GET', '/', headers=HEADERS)
+        rnd = ''.join(chr(randrange(ord('a'), ord('z')+1))
+                              for _ in range(8))
+        self.request('GET', f'/{rnd}', headers=HEADERS)
         r = self.getresponse()
+        if 200 <= r.status < 300:
+            return False # SPA
         r.read()
         server = r.getheader('Server')
         return server and 'nginx' in server
@@ -72,13 +77,17 @@ class Scanner:
                 ip = next(self.gen)
 
             with Checker(self.fuzz_list, (ip, 80), self.timeout, self.debuglevel) as checker:
-                if True or checker.pre():
+                if checker.pre():
                     for code, size, path, body in checker.run_checks():
                         with self.__print_lock:
                             # print(f'{ip:<15} {code:<3} {size:>9} {path}')
-                            if b'<html>' not in body and b'DOCTYPE' not in body:
+                            body_str = body.decode(errors='ignore')
+                            body_lower = body_str.lower()
+                            if all(k not in body_lower for k in ('<body','<html','<head','<title', '<!doctype','<h1', '<b>', '<p>','<br>')):
                                 print('[+]', ip, path)
-                                print('  >>>', body.decode(errors='ignore').splitlines()[0])
+                                print('  >>>', body_str.splitlines()[0])
+                                with STATS.open('a') as sf:
+                                    sf.write(f'{ip} {path}\n')
 
     def generate_ips(self, count):
         while count:
