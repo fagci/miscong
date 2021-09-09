@@ -37,9 +37,10 @@ class Checker(HTTPConnection):
                               for _ in range(8))
         self.request('GET', f'/{rnd}', headers=HEADERS)
         r = self.getresponse()
+        r.read()
         if 200 <= r.status < 300:
             return False # SPA
-        r.read()
+        return True
         server = r.getheader('Server')
         return server and 'nginx' in server
 
