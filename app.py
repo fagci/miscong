@@ -55,6 +55,10 @@ class Checker(HTTPConnection):
         return self
 
     def __exit__(self, _, eo, __):
+        try:
+            self.close()
+        except:
+            pass
         return not isinstance(eo, KeyboardInterrupt)
 
 
