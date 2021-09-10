@@ -29,8 +29,11 @@ class Checker(HTTPConnection):
             # if code in {400, 401, 403} or code % 100 == 5:
             #     return
 
-            if code in {200,204,401,403,405}:
-                yield code, size, path, body
+            if code in {200,204} and body:
+                body_str = body.decode(errors='ignore')
+                body_lower = body_str.lower()
+                if all(k not in body_lower for k in ('<body','<html','<head','<title', '<!doctype','<h1', '<b>', '<p>','<br>')):
+                    yield code, size, path, body_str
 
     def pre(self):
         rnd = ''.join(chr(randrange(ord('a'), ord('z')+1))
@@ -84,13 +87,9 @@ class Scanner:
                     for code, size, path, body in checker.run_checks():
                         with self.__print_lock:
                             print(f'{host:<15} {code:<3} {size:>9} {path}')
-                            # body_str = body.decode(errors='ignore')
-                            # body_lower = body_str.lower()
-                            # if all(k not in body_lower for k in ('<body','<html','<head','<title', '<!doctype','<h1', '<b>', '<p>','<br>')):
-                            #     print('[+]', host, path)
-                            #     print('  >>>', body_str.splitlines()[0])
-                            #     with STATS.open('a') as sf:
-                            #         sf.write(f'{host} {path}\n')
+                            print('  >>>', body.splitlines()[0])
+                            with STATS.open('a') as sf:
+                                sf.write(f'{host} {path}\n')
 
     def generate_ips(self, count, net, host):
         if host:
