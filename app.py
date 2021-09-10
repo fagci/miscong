@@ -2,7 +2,7 @@
 
 from argparse import ArgumentParser
 from http.client import HTTPConnection
-from ipaddress import IPV4LENGTH, IPv4Address
+from ipaddress import IPV4LENGTH, IPv4Address, IPv4Network
 from pathlib import Path
 from random import randrange
 from threading import Event, Lock, Thread
@@ -26,10 +26,10 @@ class Checker(HTTPConnection):
         for path in self.fuzz_list:
             code, size, body = self.check(path)
 
-            if code in {400, 401, 403} or code % 100 == 5:
-                return
+            # if code in {400, 401, 403} or code % 100 == 5:
+            #     return
 
-            if 100 <= code < 300:
+            if code in {200,204,401,403,405}:
                 yield code, size, path, body
 
     def pre(self):
@@ -41,8 +41,6 @@ class Checker(HTTPConnection):
         if 200 <= r.status < 300:
             return False # SPA
         return True
-        server = r.getheader('Server')
-        return server and 'nginx' in server
 
     def check(self, path):
         self.request('GET', path, headers=HEADERS)
@@ -75,32 +73,43 @@ class Scanner:
         while self.__run_event.is_set():
 
             with self.__gen_lock:
-                ip = next(self.gen)
+                try:
+                    host = next(self.gen)
+                except StopIteration:
+                    self.__run_event.clear()
+                    return
 
-            with Checker(self.fuzz_list, (ip, 80), self.timeout, self.debuglevel) as checker:
+            with Checker(self.fuzz_list, (host, 80), self.timeout, self.debuglevel) as checker:
                 if checker.pre():
                     for code, size, path, body in checker.run_checks():
                         with self.__print_lock:
-                            # print(f'{ip:<15} {code:<3} {size:>9} {path}')
-                            body_str = body.decode(errors='ignore')
-                            body_lower = body_str.lower()
-                            if all(k not in body_lower for k in ('<body','<html','<head','<title', '<!doctype','<h1', '<b>', '<p>','<br>')):
-                                print('[+]', ip, path)
-                                print('  >>>', body_str.splitlines()[0])
-                                with STATS.open('a') as sf:
-                                    sf.write(f'{ip} {path}\n')
+                            print(f'{host:<15} {code:<3} {size:>9} {path}')
+                            # body_str = body.decode(errors='ignore')
+                            # body_lower = body_str.lower()
+                            # if all(k not in body_lower for k in ('<body','<html','<head','<title', '<!doctype','<h1', '<b>', '<p>','<br>')):
+                            #     print('[+]', host, path)
+                            #     print('  >>>', body_str.splitlines()[0])
+                            #     with STATS.open('a') as sf:
+                            #         sf.write(f'{host} {path}\n')
 
-    def generate_ips(self, count):
+    def generate_ips(self, count, net, host):
+        if host:
+            yield host
+            return
+        if net:
+            for host in IPv4Network(net, strict=False).hosts():
+                yield str(host)
+            return
         while count:
             ip_address = IPv4Address(randrange(0, MAX_IPV4))
             if ip_address.is_global and not ip_address.is_multicast:
                 count -= 1
                 yield str(ip_address)
 
-    def scan(self, workers, timeout, limit):
+    def scan(self, workers, timeout, limit, net, host):
         threads = []
         self.timeout = timeout
-        self.gen = self.generate_ips(limit)
+        self.gen = self.generate_ips(limit, net, host)
 
         for _ in range(workers):
             t = Thread(target=self.__check, daemon=True)
@@ -117,6 +126,8 @@ class Scanner:
         except KeyboardInterrupt:
             self.__run_event.clear()
             print('Interrupted')
+        for t in threads:
+            t.join()
 
 
 def main():
@@ -126,10 +137,12 @@ def main():
     ap.add_argument('-t', '--timeout', type=float, default=3)
     ap.add_argument('-l', '--limit', type=int, default=1000000)
     ap.add_argument('-d', '--debuglevel', type=int, default=0)
+    ap.add_argument('-n', '--net', type=str, default='')
+    ap.add_argument('--host', type=str, default='')
     args = ap.parse_args()
 
     scanner = Scanner(args.list, args.debuglevel)
-    scanner.scan(args.workers, args.timeout, args.limit)
+    scanner.scan(args.workers, args.timeout, args.limit, args.net, args.host)
 
 
 if __name__ == '__main__':
