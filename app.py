@@ -32,7 +32,7 @@ class Checker(HTTPConnection):
             if code in {200,204} and body:
                 body_str = body.decode(errors='ignore')
                 body_lower = body_str.lower()
-                if all(k not in body_lower for k in ('<body','<html','<head','<title', '<!doctype','<h1', '<b>', '<p>','<br>')):
+                if all(k not in body_lower for k in {'<body','<html','<head','<title', '<!doctype','<h1', '<b>', '<p>','<br>'}):
                     yield code, size, path, body_str
 
     def pre(self):
