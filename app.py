@@ -14,7 +14,12 @@ HEADERS = {'User-Agent': 'Mozilla/5.0'}
 
 STATS = Path(__file__).resolve().parent / 'stats.txt'
 
+
 class Checker(HTTPConnection):
+    _BL = {
+        '<body', '<html', '<head', '<title', '<!doctype', '<h1', '<b>', '<p>',
+        '<br>'
+    }
     __slots__ = ('fuzz_list', 'timeout')
 
     def __init__(self, fuzz_list, address, timeout, debuglevel=0):
@@ -23,26 +28,23 @@ class Checker(HTTPConnection):
         self.set_debuglevel(debuglevel)
 
     def run_checks(self):
+        blacklist = self._BL
         for path in self.fuzz_list:
             code, size, body = self.check(path)
 
-            # if code in {400, 401, 403} or code % 100 == 5:
-            #     return
-
-            if code in {200,204} and body:
+            if 200 <= code < 300 and body:
                 body_str = body.decode(errors='ignore')
                 body_lower = body_str.lower()
-                if not any(k in body_lower for k in {'<body','<html','<head','<title', '<!doctype','<h1', '<b>', '<p>','<br>'}):
+                if not any(k in body_lower for k in blacklist):
                     yield code, size, path, body_str
 
     def pre(self):
-        rnd = ''.join(chr(randrange(ord('a'), ord('z')+1))
-                              for _ in range(8))
+        rnd = ''.join(chr(randrange(ord('a'), ord('z') + 1)) for _ in range(8))
         self.request('GET', f'/{rnd}', headers=HEADERS)
         r = self.getresponse()
         r.read()
         if 200 <= r.status < 300:
-            return False # SPA
+            return False  # SPA
         return True
 
     def check(self, path):
@@ -86,7 +88,8 @@ class Scanner:
                     self.__run_event.clear()
                     return
 
-            with Checker(self.fuzz_list, (host, 80), self.timeout, self.debuglevel) as checker:
+            with Checker(self.fuzz_list, (host, 80), self.timeout,
+                         self.debuglevel) as checker:
                 if checker.pre():
                     for code, size, path, body in checker.run_checks():
                         with self.__print_lock:
